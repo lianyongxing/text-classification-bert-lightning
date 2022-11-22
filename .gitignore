@@ -1,3 +1,6 @@
 .DS_Store
 .idea
 outputs
+datasets/__pycache__/*
+datas
+models/__pycache__/*
