@@ -7,6 +7,7 @@
 from task.text_classification_train_task import BertTextClassificationTask
 from models.bert import Bert
 from datasets.basic_datasets import build_dataloader
+import pytorch_lightning as pl
 
 bert_path = '/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert'
 data_path = '/Users/user/Downloads/final_train_v1.csv'
@@ -20,8 +21,6 @@ model = BertTextClassificationTask.load_from_checkpoint(
 model.eval()
 
 test_loader = build_dataloader(data_path)
-
-import pytorch_lightning as pl
 
 trainer = pl.Trainer()
 res = trainer.predict(model, test_loader)

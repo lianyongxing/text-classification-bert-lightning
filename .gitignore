@@ -4,3 +4,7 @@ outputs
 datasets/__pycache__/*
 datas
 models/__pycache__/*
+models/__*
+models/chinesebert/__pycache__/*
+task/__*
+models/__pycache__/bert.cpython-36.pyc
