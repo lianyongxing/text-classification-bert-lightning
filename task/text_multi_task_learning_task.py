@@ -19,6 +19,7 @@ import torch
 from torch.nn.modules import CrossEntropyLoss, BCEWithLogitsLoss
 import torchmetrics
 from models.multi_task_bert import MultiTaskBert
+from utils.utils import text_filtering
 
 class BertMultiClassificationTask(pl.LightningModule):
 
@@ -74,7 +75,7 @@ class BertMultiClassificationTask(pl.LightningModule):
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     def encoding(self, raw_text):
-        text = self.text_filtering(raw_text)
+        text = text_filtering(raw_text)
         if len(text) <= 1:
             return False
         input_ids, input_masks, input_types = [], [], []  # input char ids, segment type ids, attention mask  # 标签
