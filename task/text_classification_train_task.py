@@ -66,3 +66,14 @@ class BertTextClassificationTask(pl.LightningModule):
         predict_labels = torch.argmax(predict_scores, dim=-1)
         return predict_labels, predict_scores
 
+    def forward(self, text):
+        input_ids, input_masks, input_types = [], [], []  # input char ids, segment type ids, attention mask  # 标签
+        encode_dict = self.model.tokenizer.encode_plus(text, max_length=128, padding='max_length', truncation=True)
+        input_ids.append(encode_dict['input_ids'])
+        input_types.append(encode_dict['token_type_ids'])
+        input_masks.append(encode_dict['attention_mask'])
+        logits = self.model(torch.LongTensor(input_ids), torch.LongTensor(input_masks),
+                             torch.LongTensor(input_types))
+        y_pred_res = torch.argmax(logits, dim=1).detach().cpu().numpy().tolist()[0]
+        y_pred_prob = F.softmax(logits, dim=1).detach().cpu().numpy()[0][1]
+        return y_pred_res, y_pred_prob
