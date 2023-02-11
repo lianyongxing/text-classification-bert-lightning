@@ -79,7 +79,7 @@ class BertMultiClassificationTask(pl.LightningModule):
         if len(text) <= 1:
             return False
         input_ids, input_masks, input_types = [], [], []  # input char ids, segment type ids, attention mask  # 标签
-        encode_dict = self.tokenizer.encode_plus(text, max_length=self.max_len, padding='max_length', truncation=True)
+        encode_dict = self.model.tokenizer.encode_plus(text, max_length=self.model.max_len, padding='max_length', truncation=True)
         input_ids.append(encode_dict['input_ids'])
         input_types.append(encode_dict['token_type_ids'])
         input_masks.append(encode_dict['attention_mask'])
