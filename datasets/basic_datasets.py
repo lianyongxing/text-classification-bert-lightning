@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 from transformers import BertTokenizer
 from torch.utils.data.dataloader import DataLoader
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 
 class BasicDataset(Dataset):
@@ -16,10 +17,11 @@ class BasicDataset(Dataset):
     def __init__(self, encodings, labs):
         self.encodings = encodings
         self.labs = labs
+        self.final_labs = torch.LongTensor([float(i) for i in self.labs])
 
     def __getitem__(self, idx):
         item = {key: torch.LongTensor(val[idx]) for key, val in self.encodings.items()}
-        item['label'] = torch.LongTensor([float(i) for i in self.labs])[idx]
+        item['label'] = self.final_labs[idx]
         return item
 
     def __len__(self):
@@ -29,18 +31,30 @@ class BasicDataset(Dataset):
     def get_labels(cls, ):
         return [0, 1]
 
+def _build_dataloader(sentences, labs, tokenizer, max_length, batch_size):
+    encodings = tokenizer(sentences, max_length=max_length, padding='max_length', truncation=True)
+    dataset = BasicDataset(encodings, labs)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    return dataloader
 
-def build_dataloader(fp, batch_size=128):
+
+def build_dataloader(fp, max_length=30, batch_size=128):
     datas = pd.read_csv(fp)[:1000]
-    texts = datas['content_filter'].tolist()
-    labs = datas['lab'].tolist()
 
     tokenizer = BertTokenizer.from_pretrained(
         '/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert')
-    train_encodings = tokenizer(texts, max_length=30, padding='max_length', truncation=True)
-    train_dataset = BasicDataset(train_encodings, labs)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    return train_dataloader
+
+    train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
+
+    train_texts = train_datas['content_filter'].tolist()
+    train_labs = train_datas['lab'].tolist()
+    train_dataloader = _build_dataloader(train_texts, train_labs, tokenizer, max_length, batch_size)
+
+    valid_texts = valid_datas['content_filter'].tolist()
+    valid_labs = valid_datas['lab'].tolist()
+    valid_dataloader = _build_dataloader(valid_texts, valid_labs, tokenizer, max_length, batch_size)
+
+    return train_dataloader, valid_dataloader
 
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@
 # @Author  : LIANYONGXING
 # @FileName: text_classification_task.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/
 
 import pytorch_lightning as pl
 from transformers import get_cosine_schedule_with_warmup, AdamW
@@ -11,19 +10,19 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
+from models.bert import Bert
+
 
 class BertTextClassificationTask(pl.LightningModule):
 
-    def __init__(self, base_model):
+    def __init__(self):
         super().__init__()
 
-        self.model = base_model
-        self.batch_size = 16
+        self.model = Bert('/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert')
         self.criterion = CrossEntropyLoss()
-        self.acc = torchmetrics.Accuracy(num_classes=2)
+        self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
 
-
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, idx):
         loss, acc = self.compute_loss_and_acc(batch)
         tf_board_logs = {
             "train_loss": loss,
@@ -35,70 +34,35 @@ class BertTextClassificationTask(pl.LightningModule):
     def compute_loss_and_acc(self, batch):
         ids, att, tpe, lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label']
         y = lab.long()
-        y_hat = self.forward(ids, tpe, att)
+        logits = self.model(ids, tpe, att)
         # compute loss
-        loss = self.criterion(y_hat, y)
+        loss = self.criterion(logits, y)
         # compute acc
-        predict_scores = F.softmax(y_hat, dim=1)
+        predict_scores = F.softmax(logits, dim=1)
         predict_labels = torch.argmax(predict_scores, dim=-1)
         acc = self.acc(predict_labels, y)
         return loss, acc
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
-        model = self.model
-        optimizer = AdamW(model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
+        optimizer = AdamW(self.model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
         # num_gpus = self.num_gpus
         scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dataloader()),
                                                     num_training_steps=1 * len(self.train_dataloader()))
-
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
-    def forward(self, input_ids, input_types, input_masks):
-        return self.model(input_ids=input_ids, token_type_ids=input_types, attention_mask=input_masks)
+    def validation_step(self, batch, idx):
+        loss, acc = self.compute_loss_and_acc(batch)
+        tf_board_logs = {
+            "valid_loss": loss,
+            "valid_acc": acc
+        }
+        return {'loss': loss, 'log': tf_board_logs}
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
         ids, att, tpe, lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label']
-        y_hat = self.forward(ids, tpe, att)
-
+        y_hat = self.model(ids, tpe, att)
         predict_scores = F.softmax(y_hat, dim=1)
         predict_labels = torch.argmax(predict_scores, dim=-1)
         return predict_labels, predict_scores
-
-    # def train_dataloader(self) -> DataLoader:
-    #     return self.get_dataloader("train")
-
-    # def get_dataloader(self, mode="train") -> DataLoader:
-    #     """get training dataloader"""
-    #     encodings, labs = self.get_encodings(self.train_data_filepath, mode)
-    #
-    #     dataset = XHSDataset(encodings, labs)
-    #
-    #     if mode == "train":
-    #         # define data_generator will help experiment reproducibility.
-    #         data_generator = torch.Generator()
-    #         data_generator.manual_seed(2333)
-    #         data_sampler = RandomSampler(dataset, generator=data_generator)
-    #     else:
-    #         data_sampler = SequentialSampler(dataset)
-    #
-    #     dataloader = DataLoader(dataset,
-    #                             batch_size=self.batch_size,
-    #                             sampler=data_sampler,
-    #                             num_workers=self.workers)
-    #
-    #     return dataloader
-
-    # def get_encodings(self, path, mode='train'):
-    #     datas = pd.read_csv(path)[:100]
-    #     texts = datas['content_filter'].tolist()
-    #     if mode == 'train':
-    #         labs = datas['lab'].tolist()
-    #     elif mode == 'test':
-    #         labs = [1] * len(texts)
-    #     else:
-    #         raise Exception('mode 选择错误！！')
-    #     encodings = self.model.tokenizer(texts, max_length=self.max_length, padding='max_length', truncation=True)
-    #     return encodings, labs
-
 
