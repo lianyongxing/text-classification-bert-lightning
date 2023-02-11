@@ -11,16 +11,20 @@ import torch.nn.functional as F
 from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
 from models.bert import Bert
+from datasets.basic_datasets import build_dataloader
 
 
 class BertTextClassificationTask(pl.LightningModule):
 
-    def __init__(self):
+    def __init__(self, train_filepath,
+                 bert_path='/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert'):
         super().__init__()
 
-        self.model = Bert('/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert')
+        self.train_filepath = train_filepath
+        self.model = Bert(bert_path)
         self.criterion = CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
+        self.train_dataloader, self.valid_dataloader = self.get_dataloader()
 
     def training_step(self, batch, idx):
         loss, acc = self.compute_loss_and_acc(batch)
@@ -47,8 +51,8 @@ class BertTextClassificationTask(pl.LightningModule):
         """Prepare optimizer and schedule (linear warmup and decay)"""
         optimizer = AdamW(self.model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
         # num_gpus = self.num_gpus
-        scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dataloader()),
-                                                    num_training_steps=1 * len(self.train_dataloader()))
+        scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dataloader),
+                                                    num_training_steps=1 * len(self.train_dataloader))
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     def validation_step(self, batch, idx):
@@ -77,3 +81,7 @@ class BertTextClassificationTask(pl.LightningModule):
         y_pred_res = torch.argmax(logits, dim=1).detach().cpu().numpy().tolist()[0]
         y_pred_prob = F.softmax(logits, dim=1).detach().cpu().numpy()[0][1]
         return y_pred_res, y_pred_prob
+
+    def get_dataloader(self):
+        train_dataloader, valid_dataloader = build_dataloader(self.train_filepath, batch_size=16, max_len=256)
+        return train_dataloader, valid_dataloader

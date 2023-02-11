@@ -7,6 +7,7 @@
 
 from task.text_classification_train_task import BertTextClassificationTask
 from task.chinesebert_text_classification_train_task import ChineseBertTextClassificationTask
+from task.text_multi_task_learning_task import BertMultiClassificationTask
 from datasets.basic_datasets import build_dataloader
 from datasets.chinesebert_datasets import build_dataloader as build_chinesebert_dataloader
 import pytorch_lightning as pl
@@ -16,11 +17,10 @@ from transformers import BertConfig
 def experiment1():
     data_path = '/Users/user/Downloads/final_train_v1.csv'
 
-    model = BertTextClassificationTask()
-    train_loader, valid_dataloader = build_dataloader(data_path, max_length=128, batch_size=16)
+    model = BertTextClassificationTask(data_path)
 
     trainer = pl.Trainer(max_epochs=2)
-    trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=valid_dataloader)
+    trainer.fit(model=model)
 
 
 def experiment2():
@@ -35,6 +35,17 @@ def experiment2():
 
     trainer = pl.Trainer(max_epochs=1)
     trainer.fit(model=model, train_dataloaders=train_loader)
+
+
+def experiment3():
+
+    data_path = '/Users/user/Downloads/final_train_v1.csv'
+
+    model = BertMultiClassificationTask(data_path)
+
+    trainer = pl.Trainer(max_epochs=1)
+    trainer.fit(model=model)
+
 
 
 if __name__ == '__main__':
