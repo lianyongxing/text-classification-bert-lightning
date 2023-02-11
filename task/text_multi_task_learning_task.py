@@ -16,19 +16,19 @@
 import pytorch_lightning as pl
 from transformers import get_cosine_schedule_with_warmup, AdamW
 import torch
-import torch.nn.functional as F
 from torch.nn.modules import CrossEntropyLoss, BCEWithLogitsLoss
 import torchmetrics
+from models.multi_task_bert import MultiTaskBert
 
 class BertMultiClassificationTask(pl.LightningModule):
 
-    def __init__(self, base_model):
+    def __init__(self, bert_path='/Users/user/Desktop/git_projects/ChineseBERT-base'):
         super().__init__()
 
-        self.model = base_model
+        self.model = MultiTaskBert(bert_path)
         self.criterion1 = BCEWithLogitsLoss()
         self.criterion2 = CrossEntropyLoss()
-        self.acc = torchmetrics.Accuracy(num_classes=2)
+        self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
 
     def sub_task_criterion(self, logits, y):
         logits = logits.t()
@@ -59,10 +59,10 @@ class BertMultiClassificationTask(pl.LightningModule):
         ids, att, tpe, lab, sub_lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label'], batch['sub_label']
         y = lab.long()
         y_sub = sub_lab.long().t()
-        y_mtask, y_stask = self.forward(ids, tpe, att)
+        y_mtask, y_stask = self.model(ids, tpe, att)
         # compute loss
         loss = self.new_criterion(y_mtask, y_stask, y, y_sub)
-        return loss, 0
+        return loss
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
@@ -73,14 +73,44 @@ class BertMultiClassificationTask(pl.LightningModule):
 
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
-    def forward(self, input_ids, input_types, input_masks):
-        return self.model(input_ids=input_ids, token_type_ids=input_types, attention_mask=input_masks)
+    def encoding(self, raw_text):
+        text = self.text_filtering(raw_text)
+        if len(text) <= 1:
+            return False
+        input_ids, input_masks, input_types = [], [], []  # input char ids, segment type ids, attention mask  # 标签
+        encode_dict = self.tokenizer.encode_plus(text, max_length=self.max_len, padding='max_length', truncation=True)
+        input_ids.append(encode_dict['input_ids'])
+        input_types.append(encode_dict['token_type_ids'])
+        input_masks.append(encode_dict['attention_mask'])
+        logits = self.model(torch.LongTensor(input_ids),
+                              torch.LongTensor(input_masks),
+                              torch.LongTensor(input_types))
+        return logits
+
+    def compute_score(self, logits):
+        if logits == False:
+            return 0, 0, [0] * (self.model.classes_num - 1), [0] * (self.model.classes_num - 1)
+        logs_sz, logs_lab = logits
+        sz_score = torch.softmax(logs_sz, dim=-1)[0].cpu().tolist()[1]
+        lab_scores = torch.sigmoid(logs_lab)[0]
+        # 阈值
+        if sz_score >= 0.5:
+            sz_lab = 1
+        else:
+            sz_lab = 0
+
+        # 标签阈值
+        labs = lab_scores > 0.5
+        labs = labs.to(torch.float).detach().cpu().tolist()
+
+        lab_scores = lab_scores.detach().cpu().tolist()
+
+        return sz_score, sz_lab, lab_scores, labs
+
+    def forward(self, text):
+        logs = self.encoding(text)
+        sz_score, sz_lab, lab_scores, labs = self.compute_score(logs)
+        print('涉政分:\t%.8f\n是否涉政: %s\n各标签分数: %s\n各标签命中: %s\n' % (sz_score, sz_lab, lab_scores, labs))
+        return sz_score, sz_lab, lab_scores, labs
 
 
-    # def predict_step(self, batch, batch_idx, dataloader_idx = None):
-    #     ids, att, tpe, lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label']
-    #     y_hat = self.forward(ids, tpe, att)
-    #
-    #     predict_scores = F.softmax(y_hat, dim=1)
-    #     predict_labels = torch.argmax(predict_scores, dim=-1)
-    #     return predict_labels, predict_scores
