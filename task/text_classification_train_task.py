@@ -38,7 +38,7 @@ class BertTextClassificationTask(pl.LightningModule):
     def compute_loss_and_acc(self, batch):
         ids, att, tpe, lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label']
         y = lab.long()
-        logits = self.model(ids, tpe, att)
+        logits = self.model(ids, att, tpe)
         # compute loss
         loss = self.criterion(logits, y)
         # compute acc
@@ -65,17 +65,17 @@ class BertTextClassificationTask(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
         ids, att, tpe, lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label']
-        y_hat = self.model(ids, tpe, att)
+        y_hat = self.model(ids, att, tpe)
         predict_scores = F.softmax(y_hat, dim=1)
         predict_labels = torch.argmax(predict_scores, dim=-1)
         return predict_labels, predict_scores
 
     def forward(self, text):
         input_ids, input_masks, input_types = [], [], []  # input char ids, segment type ids, attention mask  # 标签
-        encode_dict = self.model.tokenizer.encode_plus(text, max_length=128, padding='max_length', truncation=True)
+        encode_dict = self.model.tokenizer.encode_plus(text, max_length=256, padding='max_length', truncation=True)
         input_ids.append(encode_dict['input_ids'])
-        input_types.append(encode_dict['token_type_ids'])
         input_masks.append(encode_dict['attention_mask'])
+        input_types.append(encode_dict['token_type_ids'])
         logits = self.model(torch.LongTensor(input_ids), torch.LongTensor(input_masks),
                              torch.LongTensor(input_types))
         y_pred_res = torch.argmax(logits, dim=1).detach().cpu().numpy().tolist()[0]
