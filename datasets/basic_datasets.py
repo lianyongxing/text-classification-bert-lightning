@@ -38,11 +38,10 @@ def _build_dataloader(sentences, labs, tokenizer, max_length, batch_size):
     return dataloader
 
 
-def build_dataloader(fp, max_length=30, batch_size=128):
+def build_dataloader(fp, max_length=30, batch_size=128, bert_path=None):
     datas = pd.read_csv(fp)[:1000]
 
-    tokenizer = BertTokenizer.from_pretrained(
-        '/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert')
+    tokenizer = BertTokenizer.from_pretrained(bert_path)
 
     train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
 
