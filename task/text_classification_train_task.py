@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
 from models.bert import Bert
-from datasets.basic_datasets import build_dataloader
+from datasets.basic_datasets import build_dataloader, build_test_dataloader
 
 
 class BertTextClassificationTask(pl.LightningModule):
@@ -91,3 +91,8 @@ class BertTextClassificationTask(pl.LightningModule):
 
     def val_dataloader(self):
         return self.valid_dl
+
+    def get_test_dataloader(self, path):
+        test_dataloader = build_test_dataloader(path, batch_size=16, max_length=256, bert_path=self.bert_path)
+        return test_dataloader
+

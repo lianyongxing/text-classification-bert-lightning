@@ -38,6 +38,14 @@ def _build_dataloader(sentences, labs, tokenizer, max_length, batch_size):
     return dataloader
 
 
+def build_test_dataloader(fp, max_length=30, batch_size=128, bert_path=None):
+    tokenizer = BertTokenizer.from_pretrained(bert_path)
+    test_datas = pd.read_csv(fp)
+    test_texts = test_datas['content_filter'].tolist()
+    test_dataloader = _build_dataloader(test_texts, [99]*len(test_texts), tokenizer, max_length, batch_size)
+    return test_dataloader
+
+
 def build_dataloader(fp, max_length=30, batch_size=128, bert_path=None):
     datas = pd.read_csv(fp)[:1000]
 
