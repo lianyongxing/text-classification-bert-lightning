@@ -64,7 +64,7 @@ class BertTextClassificationTask(pl.LightningModule):
         return {'loss': loss, 'log': tf_board_logs}
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
-        ids, att, tpe, lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label']
+        ids, att, tpe = batch['input_ids'], batch['attention_mask'], batch['token_type_ids']
         y_hat = self.model(ids, att, tpe)
         predict_scores = F.softmax(y_hat, dim=1)
         predict_labels = torch.argmax(predict_scores, dim=-1)
@@ -92,7 +92,7 @@ class BertTextClassificationTask(pl.LightningModule):
     def val_dataloader(self):
         return self.valid_dl
 
-    def get_test_dataloader(self, path):
-        test_dataloader = build_test_dataloader(path, batch_size=16, max_length=256, bert_path=self.bert_path)
+    def get_test_dataloader(self, path, batch_size=16, max_length=256):
+        test_dataloader = build_test_dataloader(path, batch_size=batch_size, max_length=max_length, bert_path=self.bert_path)
         return test_dataloader
 

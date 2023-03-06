@@ -10,6 +10,9 @@ from transformers import BertTokenizer
 from torch.utils.data.dataloader import DataLoader
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from torch.utils.data import TensorDataset, SequentialSampler
+import numpy as np
+from tqdm import tqdm
 
 
 class BasicDataset(Dataset):
@@ -38,12 +41,26 @@ def _build_dataloader(sentences, labs, tokenizer, max_length, batch_size, shuffl
     return dataloader
 
 
-def build_test_dataloader(fp, max_length=30, batch_size=128, bert_path=None):
+def build_test_dataloader(fp, max_length=256, batch_size=16, bert_path=None):
     tokenizer = BertTokenizer.from_pretrained(bert_path)
     test_datas = pd.read_csv(fp)
-    test_texts = test_datas['content_filter'].tolist()
-    test_dataloader = _build_dataloader(test_texts, [99]*len(test_texts), tokenizer, max_length, batch_size, shuffle=False)
-    return test_dataloader
+
+    input_ids, input_masks, input_types, = [], [], []
+    for idx, line in tqdm(test_datas.iterrows()):
+        sent = line['content_filter']
+        encode_dict = tokenizer.encode_plus(text=sent, max_length=max_length, padding='max_length', truncation=True)
+        input_ids.append(encode_dict['input_ids'])
+        input_types.append(encode_dict['token_type_ids'])
+        input_masks.append(encode_dict['attention_mask'])
+
+    input_ids, input_types, input_masks = np.array(input_ids), np.array(input_types), np.array(input_masks)
+    test_data = TensorDataset(torch.LongTensor(input_ids),
+                              torch.LongTensor(input_masks),
+                              torch.LongTensor(input_types)
+                              )
+    test_sampler = SequentialSampler(test_data)
+    test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=batch_size)
+    return test_loader
 
 
 def build_dataloader(fp, max_length=30, batch_size=128, bert_path=None):
