@@ -22,15 +22,15 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
         super().__init__()
 
         self.data_path = data_path
-        self.bert_config = BertConfig.from_pretrained(bert_path, output_hidden_states=False, num_labels=2)
-        self.model = GlyceBertForSequenceClassification.from_pretrained(bert_path, config=self.bert_config)
-        self.batch_size = 16
+        self.bert_path = bert_path
+        self.bert_config = BertConfig.from_pretrained(self.bert_path, output_hidden_states=False, num_labels=2)
+        self.model = GlyceBertForSequenceClassification.from_pretrained(self.bert_path, config=self.bert_config)
         self.criterion = CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
         self.train_dl, self.valid_dl = self.get_dataloader()
 
     def get_dataloader(self):
-        train_loader, valid_loader = build_chinesebert_dataloader(self.data_path)
+        train_loader, valid_loader = build_chinesebert_dataloader(self.data_path, self.bert_path)
         return train_loader, valid_loader
 
     def training_step(self, batch, batch_idx):

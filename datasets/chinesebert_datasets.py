@@ -114,18 +114,18 @@ def _build_dataloader(texts, labs, token_encoder, batch_size):
     dataloader = DataLoader(dataset, batch_size=batch_size, collate_fn=partial(collate_to_max_length, fill_values=[0, 0, 0]))
     return dataloader
 
-def build_dataloader(fp, batch_size=16):
+def build_dataloader(fp, bert_path, batch_size=16, max_len=256):
     datas = pd.read_csv(fp)
-    tokenEncoder = ChineseBertTokenEncoder('/Users/user/Desktop/git_projects/ChineseBERT-base')
+    tokenEncoder = ChineseBertTokenEncoder(bert_path)
 
     train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
     train_texts = train_datas['content_filter'].tolist()    # 必须长度限制在512内
-    train_texts = [i[: 510] for i in train_texts]
+    train_texts = [i[: max_len] for i in train_texts]
     train_labs = train_datas['lab'].tolist()
     train_dl = _build_dataloader(train_texts, train_labs, tokenEncoder, batch_size)
 
     valid_texts = valid_datas['content_filter'].tolist()    # 必须长度限制在512内
-    valid_texts = [i[: 510] for i in valid_texts]
+    valid_texts = [i[: max_len] for i in valid_texts]
     valid_labs = valid_datas['lab'].tolist()
     valid_dl = _build_dataloader(valid_texts, valid_labs, tokenEncoder, batch_size)
 
