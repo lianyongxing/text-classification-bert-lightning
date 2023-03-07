@@ -64,7 +64,7 @@ class BertTextClassificationTask(pl.LightningModule):
         return {'loss': loss, 'log': tf_board_logs}
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
-        ids, att, tpe = batch['input_ids'], batch['attention_mask'], batch['token_type_ids']
+        ids, att, tpe = batch
         y_hat = self.model(ids, att, tpe)
         predict_scores = F.softmax(y_hat, dim=1)
         predict_labels = torch.argmax(predict_scores, dim=-1)
