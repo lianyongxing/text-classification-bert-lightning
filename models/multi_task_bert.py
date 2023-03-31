@@ -3,7 +3,6 @@
 # @Author  : LIANYONGXING
 # @FileName: multi_task_bert.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/
 
 import pytorch_lightning as pl
 import torch

@@ -21,6 +21,7 @@ class BertMultiClassificationTask(pl.LightningModule):
         super().__init__()
 
         self.train_filepath = train_filepath
+        self.train_dl, self.valid_dl = self.get_dataloader()
 
         self.model = MultiTaskBert(bert_path)
         self.criterion1 = BCEWithLogitsLoss()
@@ -28,15 +29,15 @@ class BertMultiClassificationTask(pl.LightningModule):
         self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
 
     def sub_task_criterion(self, logits, y):
-        logits = logits.t()
-        loss0 = self.criterion1(logits[0], y[0].float())
-        loss1 = self.criterion1(logits[1], y[1].float())
-        loss2 = self.criterion1(logits[2], y[2].float())
-        loss3 = self.criterion1(logits[3], y[3].float())
-        loss4 = self.criterion1(logits[4], y[4].float())
-        loss5 = self.criterion1(logits[5], y[5].float())
-        loss = loss0 + loss1 + loss2 + loss3 + loss4 + loss5
-        return loss / 6
+
+        loss0 = self.criterion1(logits[:,0], y[:,0])
+        loss1 = self.criterion1(logits[:,1], y[:,1])
+        loss2 = self.criterion1(logits[:,2], y[:,2])
+        loss3 = self.criterion1(logits[:,3], y[:,3])
+        loss4 = self.criterion1(logits[:,4], y[:,4])
+        loss5 = self.criterion1(logits[:,5], y[:,5])
+        loss = loss0.item() + loss1.item() + loss2.item() + loss3.item() + loss4.item() + loss5.item()
+        return loss/6
 
     def new_criterion(self, y_pred_sz, y_pred_labs, y_sz, y):
         loss0 = self.criterion2(y_pred_sz, y_sz)
@@ -52,20 +53,27 @@ class BertMultiClassificationTask(pl.LightningModule):
         }
         return {'loss': loss, 'log': tf_board_logs}
 
+
     def compute_loss_and_acc(self, batch):
         ids, att, tpe, lab, sub_lab = batch['input_ids'], batch['attention_mask'], batch['token_type_ids'], batch['label'], batch['sub_label']
-        y = lab.long()
-        y_sub = sub_lab.long().t()
+        y = lab
+        y_sub = sub_lab
         y_mtask, y_stask = self.model(ids, tpe, att)
+
+        predict_scores = torch.nn.functional.softmax(y_mtask, dim=-1)
+        # predict_labels = torch.argmax(predict_scores, dim=-1)
         # compute loss
         loss = self.new_criterion(y_mtask, y_stask, y, y_sub)
-        return loss
+
+        acc = self.acc(predict_scores, y)
+
+        return loss, acc
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
         optimizer = AdamW(self.model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
-        scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dataloader),
-                                                    num_training_steps=1 * len(self.train_dataloader))
+        scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dl),
+                                                    num_training_steps=1 * len(self.train_dl))
 
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
@@ -110,4 +118,11 @@ class BertMultiClassificationTask(pl.LightningModule):
         return sz_score, sz_lab, lab_scores, labs
 
     def get_dataloader(self):
-        self.train_dataloader, self.valid_dataloader = build_dataloader(self.train_filepath, batch_size=16, max_len=256)
+        train_dataloader, valid_dataloader = build_dataloader(self.train_filepath, batch_size=4, max_len=256)
+        return train_dataloader, valid_dataloader
+
+    def train_dataloader(self):
+        return self.train_dl
+
+    def val_dataloader(self):
+        return self.valid_dl
