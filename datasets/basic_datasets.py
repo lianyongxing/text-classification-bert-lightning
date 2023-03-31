@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 # @Time    : 11/16/22 3:36 PM
 # @Author  : LIANYONGXING
-# @FileName: xhs_datasets.py
+# @FileName: basic_datasets.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/text-classification-bert-lightning
+
 import torch
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
 from torch.utils.data.dataloader import DataLoader
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from torch.utils.data import TensorDataset, SequentialSampler
+import numpy as np
+from tqdm import tqdm
 
 
 class BasicDataset(Dataset):
@@ -31,20 +34,44 @@ class BasicDataset(Dataset):
     def get_labels(cls, ):
         return [0, 1]
 
-def _build_dataloader(sentences, labs, tokenizer, max_length, batch_size):
+
+def _build_dataloader(sentences, labs, tokenizer, max_length, batch_size, shuffle=True):
     encodings = tokenizer(sentences, max_length=max_length, padding='max_length', truncation=True)
     dataset = BasicDataset(encodings, labs)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
 
 
-def build_dataloader(fp, max_length=30, batch_size=128):
-    datas = pd.read_csv(fp)[:1000]
+def build_test_dataloader(fp, max_length, batch_size, bert_path):
+    tokenizer = BertTokenizer.from_pretrained(bert_path)
+    test_datas = pd.read_csv(fp)
 
-    tokenizer = BertTokenizer.from_pretrained(
-        '/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert')
+    input_ids, input_masks, input_types, = [], [], []
+    for idx, line in tqdm(test_datas.iterrows()):
+        sent = line['content_filter']
+        encode_dict = tokenizer.encode_plus(text=sent, max_length=max_length, padding='max_length', truncation=True)
+        input_ids.append(encode_dict['input_ids'])
+        input_types.append(encode_dict['token_type_ids'])
+        input_masks.append(encode_dict['attention_mask'])
 
-    train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
+    input_ids, input_types, input_masks = np.array(input_ids), np.array(input_types), np.array(input_masks)
+    test_data = TensorDataset(torch.LongTensor(input_ids),
+                              torch.LongTensor(input_masks),
+                              torch.LongTensor(input_types)
+                              )
+    test_sampler = SequentialSampler(test_data)
+    test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=batch_size)
+    return test_loader
+
+
+def build_dataloader(fp, max_length, batch_size, bert_path, test_ratio=0.2):
+    datas = pd.read_csv(fp)
+    datas = datas[~datas['content_filter'].isna()]
+
+    tokenizer = BertTokenizer.from_pretrained(bert_path)
+
+    train_datas, valid_datas = train_test_split(datas, test_size=test_ratio, random_state=20)
+    valid_datas.to_csv('valid_datas.csv')
 
     train_texts = train_datas['content_filter'].tolist()
     train_labs = train_datas['lab'].tolist()
@@ -58,4 +85,4 @@ def build_dataloader(fp, max_length=30, batch_size=128):
 
 
 if __name__ == "__main__":
-    build_dataloader('/Users/user/Downloads/final_train_v1.csv')
+    pass

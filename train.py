@@ -1,42 +1,73 @@
 # -*- coding: utf-8 -*-
-# @Time    : 11/22/22 3:21 PM
+# @Time    : 3/31/23 4:27 PM
 # @Author  : LIANYONGXING
-# @FileName: model.py
-# @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/text-classification-bert-lightning
-
+# @FileName: train_script.py
 from task.text_classification_train_task import BertTextClassificationTask
-from task.chinesebert_text_classification_train_task import ChineseBertTextClassificationTask
-from datasets.basic_datasets import build_dataloader
-from datasets.chinesebert_datasets import build_dataloader as build_chinesebert_dataloader
-import pytorch_lightning as pl
-from models.chinesebert.modeling_glycebert import GlyceBertForSequenceClassification
-from transformers import BertConfig
-
-def experiment1():
-    data_path = '/Users/user/Downloads/final_train_v1.csv'
-
-    model = BertTextClassificationTask()
-    train_loader, valid_dataloader = build_dataloader(data_path, max_length=128, batch_size=16)
-
-    trainer = pl.Trainer(max_epochs=2)
-    trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=valid_dataloader)
+from pytorch_lightning.callbacks import ModelCheckpoint
+import argparse
+from pytorch_lightning import Trainer
+from pytorch_lightning.loggers import TensorBoardLogger
+import os
+import json
 
 
-def experiment2():
+def get_parser():
+    parser = argparse.ArgumentParser(description="Training")
+    parser.add_argument("--bert_path", required=True, type=str, help="bert config file")
+    parser.add_argument("--batch_size", type=int, default=8, help="batch size")
+    parser.add_argument("--lr", type=float, default=2e-5, help="learning rate")
+    parser.add_argument("--epochs", type=int, default=2, help="max epochs")
+    parser.add_argument("--save_every_epoch", type=int, default=1, help="save_every_epoch")
+    parser.add_argument("--workers", type=int, default=0, help="num workers for dataloader")
+    parser.add_argument("--weight_decay", default=1e-4, type=float, help="Weight decay if we apply some.")
+    parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
+    parser.add_argument("--use_memory", action="store_true", help="load dataset to memory to accelerate.")
+    parser.add_argument("--max_length", default=256, type=int, help="max length of dataset")
+    parser.add_argument("--train_filepath", required=True, type=str, help="train data path")
+    parser.add_argument("--save_path", required=True, type=str, help="train data path")
+    parser.add_argument("--save_topk", default=2, type=int, help="save topk checkpoint")
+    parser.add_argument("--warmup_proportion", default=0.01, type=float)
+    parser.add_argument("--hidden_dropout_prob", default=0.1, type=float, help="dropout probability")
+    parser.add_argument("--tag", default='v001', type=str, help="version")
 
-    bert_dir = '/Users/user/Desktop/git_projects/ChineseBERT-base'
-    bert_config = BertConfig.from_pretrained(bert_dir, output_hidden_states=False, num_labels=2)
-    base_model = GlyceBertForSequenceClassification.from_pretrained(bert_dir, config=bert_config)
-    model = ChineseBertTextClassificationTask(base_model)
-
-    data_path = '/Users/user/Downloads/final_train_v1.csv'
-    train_loader = build_chinesebert_dataloader(data_path)
-
-    trainer = pl.Trainer(max_epochs=1)
-    trainer.fit(model=model, train_dataloaders=train_loader)
+    return parser
 
 
 if __name__ == '__main__':
-    experiment1()
-    # experiment2()
+
+    parser = get_parser()
+    parser = Trainer.add_argparse_args(parser)
+    args = parser.parse_args()
+
+    # save args
+    save_args_folder = os.path.join(args.save_path, args.tag)
+    if os.path.exists(save_args_folder):
+        print('tag版本号已经存在，请检查')
+        exit(0)
+    else:
+        os.makedirs(save_args_folder)
+
+    logger = TensorBoardLogger(
+        save_dir=save_args_folder,
+        name='log'
+    )
+
+    checkpoint_callback = ModelCheckpoint(dirpath=save_args_folder,
+                                          every_n_epochs=args.save_every_epoch,
+                                          save_on_train_epoch_end=True,
+                                          save_top_k=-1)
+    
+    with open(os.path.join(save_args_folder, "args.json"), 'w') as f:
+        args_dict = args.__dict__
+        args_dict = {k:v for k,v in args_dict.items() if v is not None}
+        json.dump(args_dict, f, indent=4)
+
+    model = BertTextClassificationTask(args)
+
+    trainer = Trainer.from_argparse_args(args,
+                                         max_epochs = args.epochs,
+                                         logger = logger,
+                                         callbacks=checkpoint_callback,
+                                         )
+
+    trainer.fit(model)

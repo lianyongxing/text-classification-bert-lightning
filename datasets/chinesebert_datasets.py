@@ -3,7 +3,6 @@
 # @Author  : LIANYONGXING
 # @FileName: chinesebert_datasets.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/
 import json
 import os
 from typing import List
@@ -12,6 +11,7 @@ import tokenizers
 from functools import partial
 import torch
 from pypinyin import pinyin, Style
+from sklearn.model_selection import train_test_split
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
@@ -101,25 +101,34 @@ class ChineseBertTokenEncoder(object):
 
         return pinyin_ids
 
-
-def build_dataloader(fp, batch_size=16):
-    datas = pd.read_csv(fp)[:1000]
-    # datas = datas[datas['content_filter'].str.len() <= 400]
-    texts = datas['content_filter'].tolist()    # 必须长度限制在512内
-    texts = [i[: 510] for i in texts]
-    labs = datas['lab'].tolist()
-
-    train_encodings = {'ids': [], 'pinyins': []}
-    tokenEncoder = ChineseBertTokenEncoder('/Users/user/Desktop/git_projects/ChineseBERT-base')
+def _build_dataloader(texts, labs, token_encoder, batch_size):
+    encodings = {'ids': [], 'pinyins': []}
 
     for text in texts:
-        input_id, pinyin_id = tokenEncoder.tokenize_sentence(text)
-        train_encodings['ids'].append(input_id)
-        train_encodings['pinyins'].append(pinyin_id)
+        input_id, pinyin_id = token_encoder.tokenize_sentence(text)
+        encodings['ids'].append(input_id)
+        encodings['pinyins'].append(pinyin_id)
 
-    train_dataset = ChineseBertDataset(train_encodings, labs)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=partial(collate_to_max_length, fill_values=[0, 0, 0]))
-    return train_dataloader
+    dataset = ChineseBertDataset(encodings, labs)
+    dataloader = DataLoader(dataset, batch_size=batch_size, collate_fn=partial(collate_to_max_length, fill_values=[0, 0, 0]))
+    return dataloader
+
+def build_dataloader(fp, bert_path, batch_size=16, max_len=256):
+    datas = pd.read_csv(fp)
+    tokenEncoder = ChineseBertTokenEncoder(bert_path)
+
+    train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
+    train_texts = train_datas['content_filter'].tolist()    # 必须长度限制在512内
+    train_texts = [i[: max_len] for i in train_texts]
+    train_labs = train_datas['lab'].tolist()
+    train_dl = _build_dataloader(train_texts, train_labs, tokenEncoder, batch_size)
+
+    valid_texts = valid_datas['content_filter'].tolist()    # 必须长度限制在512内
+    valid_texts = [i[: max_len] for i in valid_texts]
+    valid_labs = valid_datas['lab'].tolist()
+    valid_dl = _build_dataloader(valid_texts, valid_labs, tokenEncoder, batch_size)
+
+    return train_dl, valid_dl
 
 
 if __name__ == '__main__':

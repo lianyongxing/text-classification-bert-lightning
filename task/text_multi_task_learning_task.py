@@ -5,25 +5,22 @@
 # @Software: PyCharm
 # @Repo    : https://github.com/lianyongxing/
 
-
-# -*- coding: utf-8 -*-
-# @Time    : 11/22/22 11:28 AM
-# @Author  : LIANYONGXING
-# @FileName: text_classification_task.py
-# @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/
-
 import pytorch_lightning as pl
 from transformers import get_cosine_schedule_with_warmup, AdamW
 import torch
 from torch.nn.modules import CrossEntropyLoss, BCEWithLogitsLoss
 import torchmetrics
 from models.multi_task_bert import MultiTaskBert
+from utils.utils import text_filtering
+from datasets.mlt_datasets import build_dataloader
+
 
 class BertMultiClassificationTask(pl.LightningModule):
 
-    def __init__(self, bert_path='/Users/user/Desktop/git_projects/ChineseBERT-base'):
+    def __init__(self, train_filepath, bert_path='/Users/user/Desktop/git_projects/ChineseBERT-base'):
         super().__init__()
+
+        self.train_filepath = train_filepath
 
         self.model = MultiTaskBert(bert_path)
         self.criterion1 = BCEWithLogitsLoss()
@@ -66,19 +63,18 @@ class BertMultiClassificationTask(pl.LightningModule):
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
-        model = self.model
-        optimizer = AdamW(model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
-        scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dataloader()),
-                                                    num_training_steps=1 * len(self.train_dataloader()))
+        optimizer = AdamW(self.model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
+        scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dataloader),
+                                                    num_training_steps=1 * len(self.train_dataloader))
 
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     def encoding(self, raw_text):
-        text = self.text_filtering(raw_text)
+        text = text_filtering(raw_text)
         if len(text) <= 1:
             return False
         input_ids, input_masks, input_types = [], [], []  # input char ids, segment type ids, attention mask  # 标签
-        encode_dict = self.tokenizer.encode_plus(text, max_length=self.max_len, padding='max_length', truncation=True)
+        encode_dict = self.model.tokenizer.encode_plus(text, max_length=self.model.max_len, padding='max_length', truncation=True)
         input_ids.append(encode_dict['input_ids'])
         input_types.append(encode_dict['token_type_ids'])
         input_masks.append(encode_dict['attention_mask'])
@@ -113,4 +109,5 @@ class BertMultiClassificationTask(pl.LightningModule):
         print('涉政分:\t%.8f\n是否涉政: %s\n各标签分数: %s\n各标签命中: %s\n' % (sz_score, sz_lab, lab_scores, labs))
         return sz_score, sz_lab, lab_scores, labs
 
-
+    def get_dataloader(self):
+        self.train_dataloader, self.valid_dataloader = build_dataloader(self.train_filepath, batch_size=16, max_len=256)

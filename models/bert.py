@@ -3,7 +3,6 @@
 # @Author  : LIANYONGXING
 # @FileName: bert.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/text-classification-bert-lightning
 
 import torch.nn as nn
 from transformers import BertModel, BertConfig, BertTokenizer
@@ -11,8 +10,6 @@ import warnings
 import pytorch_lightning as pl
 
 warnings.filterwarnings('ignore')
-
-bert_path = "/Users/user/Downloads/chinese_bert"  # 该文件夹下存放三个文件（'vocab.txt', 'pytorch_model.bin', 'config.json'）
 #
 class Bert(pl.LightningModule):
 
@@ -32,4 +29,5 @@ class Bert(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    bt = Bert(bert_path)
+    bert_path = "/Users/user/Downloads/chinese_bert"  # 该文件夹下存放三个文件（'vocab.txt', 'pytorch_model.bin', 'config.json'）
+    bert = Bert(bert_path)
