@@ -14,6 +14,7 @@ from models.bert import Bert
 from datasets.basic_datasets import build_dataloader, build_test_dataloader
 from sklearn.metrics import classification_report
 import argparse
+from types import SimpleNamespace
 
 
 class BertTextClassificationTask(pl.LightningModule):
@@ -21,16 +22,20 @@ class BertTextClassificationTask(pl.LightningModule):
     def __init__(self,
                  args: argparse.Namespace):
         super().__init__()
-        self.args = args
         if isinstance(args, argparse.Namespace):
             self.save_hyperparameters(args)
-
+        if isinstance(args, dict):
+            args = SimpleNamespace(**args)
+            args.mode = 'test'
+        self.args = args
         self.bert_path = args.bert_path
         self.train_filepath = args.train_filepath
         self.model = Bert(self.bert_path)
         self.criterion = CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
-        if self.train_filepath != '':
+
+        self.mode = args.mode
+        if self.mode == 'train':
             self.train_dl, self.valid_dl = self.get_dataloader()
 
     def training_step(self, batch, idx):
