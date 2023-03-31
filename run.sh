@@ -1,0 +1,1 @@
+python train.py --bert_path '/Users/user/Downloads/chinese_bert' --train_filepath '/Users/user/Downloads/final_train_v1.csv' --save_path '/Users/user/Desktop/git_projects/text-classification-bert-lightning/' --tag 'new_version2'

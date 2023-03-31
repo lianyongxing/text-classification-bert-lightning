@@ -3,7 +3,6 @@
 # @Author  : LIANYONGXING
 # @FileName: utils.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/
 import zhconv
 import re
 
@@ -65,5 +64,6 @@ emojis = {"💩": "屎",
           "🇰🇵": "朝鲜",
           "🇫🇷": "法国",
           "🇺🇦": "乌克兰",
-          "🇷🇺": "俄罗斯", "🇨🇦": "加拿大"
+          "🇷🇺": "俄罗斯",
+          "🇨🇦": "加拿大"
           }

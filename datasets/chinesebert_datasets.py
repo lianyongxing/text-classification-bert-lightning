@@ -3,7 +3,6 @@
 # @Author  : LIANYONGXING
 # @FileName: chinesebert_datasets.py
 # @Software: PyCharm
-# @Repo    : https://github.com/lianyongxing/
 import json
 import os
 from typing import List
