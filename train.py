@@ -30,6 +30,7 @@ def get_parser():
     parser.add_argument("--hidden_dropout_prob", default=0.1, type=float, help="dropout probability")
     parser.add_argument("--tag", default='v001', type=str, help="version")
     parser.add_argument("--mode", default='train', type=str, help="version")
+    parser.add_argument("--model", default='bert', type=str, help="use pretrain model")
 
     return parser
 

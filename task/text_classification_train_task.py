@@ -10,7 +10,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
-from models.bert import Bert
 from datasets.basic_datasets import build_dataloader, build_test_dataloader
 from sklearn.metrics import classification_report
 import argparse
@@ -30,7 +29,14 @@ class BertTextClassificationTask(pl.LightningModule):
         self.args = args
         self.bert_path = args.bert_path
         self.train_filepath = args.train_filepath
-        self.model = Bert(self.bert_path)
+        
+        if args.model == 'bert':
+            from models.bert import Bert
+            self.model = Bert(self.bert_path)
+        elif args.model == 'roberta':
+            from models.roberta import Roberta
+            self.model = Roberta(self.bert_path)
+
         self.criterion = CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
 
