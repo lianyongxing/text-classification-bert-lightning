@@ -37,7 +37,7 @@ from modeling_glycebert import GlyceBertForSequenceClassification
 bert_dir = '/Users/user/Desktop/git_projects/ChineseBERT-base'
 bert_config = BertConfig.from_pretrained(bert_dir, output_hidden_states=False, num_labels=2)
 base_model = GlyceBertForSequenceClassification.from_pretrained(bert_dir, config=bert_config)
-from datasets.chinesebert_datasets import ChineseBertTokenEncoder
+from dataset.chinesebert_datasets import ChineseBertTokenEncoder
 from task.chinesebert_text_classification_train_task import ChineseBertTextClassificationTask
 tokenizer = ChineseBertTokenEncoder(bert_dir)
 sentence = "点开百度地图看看"

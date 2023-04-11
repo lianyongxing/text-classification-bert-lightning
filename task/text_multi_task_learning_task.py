@@ -12,7 +12,7 @@ from torch.nn.modules import CrossEntropyLoss, BCEWithLogitsLoss
 import torchmetrics
 from models.multi_task_bert import MultiTaskBert
 from utils.utils import text_filtering
-from datasets.mlt_datasets import build_dataloader
+from dataset.mlt_datasets import build_dataloader
 
 
 class BertMultiClassificationTask(pl.LightningModule):

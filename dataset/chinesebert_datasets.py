@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
-from datasets.collate_functions import collate_to_max_length
+from dataset.collate_functions import collate_to_max_length
 
 class ChineseBertDataset(Dataset):
 
@@ -114,7 +114,7 @@ def _build_dataloader(texts, labs, token_encoder, batch_size):
     return dataloader
 
 def build_dataloader(fp, bert_path, batch_size=16, max_len=256):
-    datas = pd.read_csv(fp)
+    datas = pd.read_csv(fp)[:1000]
     tokenEncoder = ChineseBertTokenEncoder(bert_path)
 
     train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)

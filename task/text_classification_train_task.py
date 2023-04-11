@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
-from datasets.basic_datasets import build_dataloader, build_test_dataloader
+from dataset.basic_datasets import build_dataloader, build_test_dataloader
 from sklearn.metrics import classification_report
 import argparse
 from types import SimpleNamespace
@@ -73,7 +73,7 @@ class BertTextClassificationTask(pl.LightningModule):
 
         scheduler = get_cosine_schedule_with_warmup(optimizer,
                                                     num_warmup_steps=len(self.train_dl),
-                                                    num_training_steps=5*len(self.train_dl))
+                                                    num_training_steps=self.args.epochs*len(self.train_dl))
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     def validation_step(self, batch, idx):

@@ -13,21 +13,31 @@ from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
 from models.chinesebert.modeling_glycebert import GlyceBertForSequenceClassification
 from transformers import BertConfig
-from datasets.chinesebert_datasets import build_dataloader as build_chinesebert_dataloader
+from dataset.chinesebert_datasets import build_dataloader as build_chinesebert_dataloader
+import argparse
+from sklearn.metrics import classification_report
+
 
 
 class ChineseBertTextClassificationTask(pl.LightningModule):
 
-    def __init__(self, data_path, bert_path='/Users/user/Desktop/git_projects/ChineseBERT-base'):
+    def __init__(self,
+                 args: argparse.Namespace
+    ):
         super().__init__()
+        if isinstance(args, argparse.Namespace):
+            self.save_hyperparameters(args)
 
-        self.data_path = data_path
-        self.bert_path = bert_path
+        self.args = args
+        self.data_path = args.train_filepath
+        self.bert_path = args.bert_path
         self.bert_config = BertConfig.from_pretrained(self.bert_path, output_hidden_states=False, num_labels=2)
         self.model = GlyceBertForSequenceClassification.from_pretrained(self.bert_path, config=self.bert_config)
         self.criterion = CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(num_classes=2, task='binary')
-        self.train_dl, self.valid_dl = self.get_dataloader()
+
+        if args.mode == 'train':
+            self.train_dl, self.valid_dl = self.get_dataloader()
 
     def get_dataloader(self):
         train_loader, valid_loader = build_chinesebert_dataloader(self.data_path, self.bert_path)
@@ -40,6 +50,7 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
             "train_acc": acc,
             "lr": self.trainer.optimizers[0].param_groups[0]['lr']
         }
+        self.log_dict(tf_board_logs)
         return {'loss': loss, 'log': tf_board_logs}
 
     def compute_loss_and_acc(self, batch):
@@ -60,10 +71,10 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
-        optimizer = AdamW(self.model.parameters(), lr=2e-5, weight_decay=1e-4)  # AdamW优化器
+        optimizer = AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)  # AdamW优化器
         # num_gpus = self.num_gpus
         scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=len(self.train_dl),
-                                                    num_training_steps=1 * len(self.train_dl))
+                                                    num_training_steps=self.args.epochs * len(self.train_dl))
 
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
@@ -72,18 +83,48 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
         return self.model(input_ids, pinyin_ids, attention_mask=attention_mask)[0]
 
     def validation_step(self, batch, idx):
-        loss, acc = self.compute_loss_and_acc(batch)
-        tf_board_logs = {
-            "valid_loss": loss,
-            "valid_acc": acc
-        }
+        ids, pinyins, lab = batch
+        batch_size, length = ids.shape
+        pinyin_ids = pinyins.view(batch_size, length, 8)
+
+        y = lab.long().view(-1)
+
+        y_hat = self.forward(ids, pinyin_ids)
+        # compute loss
+        loss = self.criterion(y_hat, y)
+        # compute acc
+        predict_scores = F.softmax(y_hat, dim=1)
+        predict_labels = torch.argmax(predict_scores, dim=-1)
+        cls_report = classification_report(y.cpu(),predict_labels.cpu(), output_dict=True)
+        try:
+            cls_report_bcase = cls_report['1']
+            tf_board_logs = {
+                "valid_loss": loss,
+                "valid_acc": cls_report_bcase['precision'],
+                "valid_recall": cls_report_bcase['recall'],
+                "valid_f1": cls_report_bcase['f1-score']
+            }
+        except Exception as e:
+            print(cls_report)
+            tf_board_logs = {
+                "valid_loss": loss,
+                "valid_acc": 0,
+                "valid_recall": 0,
+                "valid_f1": 0
+            }
+        self.log_dict(tf_board_logs)
         return {'loss': loss, 'log': tf_board_logs}
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
-        ids, pys, lab = batch
-        y_hat = self.forward(ids, pys)
+
+        ids, pinyins = batch
+        batch_size, length = ids.shape
+        pinyin_ids = pinyins.view(batch_size, length, 8)
+
+        y_hat = self.forward(ids, pinyin_ids)
         predict_scores = F.softmax(y_hat, dim=1)
         predict_labels = torch.argmax(predict_scores, dim=-1)
+
         return predict_labels, predict_scores
 
     def train_dataloader(self):

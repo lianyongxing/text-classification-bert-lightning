@@ -2,7 +2,6 @@
 # @Time    : 3/31/23 4:27 PM
 # @Author  : LIANYONGXING
 # @FileName: train_script.py
-from task.text_classification_train_task import BertTextClassificationTask
 from pytorch_lightning.callbacks import ModelCheckpoint
 import argparse
 from pytorch_lightning import Trainer
@@ -31,7 +30,7 @@ def get_parser():
     parser.add_argument("--tag", default='v001', type=str, help="version")
     parser.add_argument("--mode", default='train', type=str, help="version")
     parser.add_argument("--model", default='bert', type=str, help="use pretrain model")
-
+    parser.add_argument("--gpu_num", default=0, type=int, help="use gpu num")
     return parser
 
 
@@ -64,10 +63,20 @@ if __name__ == '__main__':
         args_dict = {k:v for k,v in args_dict.items() if v is not None}
         json.dump(args_dict, f, indent=4)
 
-    model = BertTextClassificationTask(args)
+    if args.model == 'bert' or args.model == 'roberta':
+
+        from task.text_classification_train_task import BertTextClassificationTask
+        model = BertTextClassificationTask(args)
+    elif args.model == 'chinesebert':
+        from task.chinesebert_text_classification_train_task import ChineseBertTextClassificationTask
+        model = ChineseBertTextClassificationTask(args)
+    else:
+        print('选择合适的model')
+        exit(0)
 
     trainer = Trainer.from_argparse_args(args,
                                          max_epochs = args.epochs,
+                                         gpus=args.gpu_num,
                                          logger = logger,
                                          callbacks=checkpoint_callback,
                                          )

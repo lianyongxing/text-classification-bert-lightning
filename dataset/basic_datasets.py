@@ -68,7 +68,7 @@ def build_dataloader(fp, max_length, batch_size, bert_path, test_ratio=0.2):
     datas = pd.read_csv(fp)
     datas = datas[~datas['content_filter'].isna()]
 
-    tokenizer = BertTokenizer.from_pretrained(bert_path)
+    tokenizer = BertTokenizer.from_pretrained(bert_path, use_fast=True)
 
     train_datas, valid_datas = train_test_split(datas, test_size=test_ratio, random_state=20)
     valid_datas.to_csv('valid_datas.csv')

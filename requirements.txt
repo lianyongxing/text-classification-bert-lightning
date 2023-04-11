@@ -2,3 +2,4 @@ pytorch-lightning
 pandas
 transformers
 torch
+pypinyin
