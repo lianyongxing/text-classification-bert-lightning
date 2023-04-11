@@ -114,7 +114,7 @@ def _build_dataloader(texts, labs, token_encoder, batch_size):
     return dataloader
 
 def build_dataloader(fp, bert_path, batch_size=16, max_len=256):
-    datas = pd.read_csv(fp)[:1000]
+    datas = pd.read_csv(fp)
     tokenEncoder = ChineseBertTokenEncoder(bert_path)
 
     train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
