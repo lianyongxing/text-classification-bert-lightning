@@ -40,7 +40,7 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
             self.train_dl, self.valid_dl = self.get_dataloader()
 
     def get_dataloader(self):
-        train_loader, valid_loader = build_chinesebert_dataloader(self.data_path, self.bert_path)
+        train_loader, valid_loader = build_chinesebert_dataloader(self.data_path, self.bert_path, batch_size=self.args.batch_size, max_len=self.args.max_length)
         return train_loader, valid_loader
 
     def training_step(self, batch, batch_idx):
