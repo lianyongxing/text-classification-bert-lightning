@@ -117,7 +117,7 @@ def _build_dataloader(texts, labs, token_encoder, batch_size):
 def build_dataloader(fp, bert_path, batch_size, max_len):
     datas = pd.read_csv(fp)
     datas = datas[~datas['content_filter'].isna()]
-    tokenEncoder = ChineseBertTokenEncoder(bert_path)
+    tokenEncoder = ChineseBertTokenEncoder(bert_path, max_length=max_len)
 
     train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
     train_texts = train_datas['content_filter'].tolist()    # 必须长度限制在512内
