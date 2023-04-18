@@ -6,7 +6,7 @@
 # @Repo    : https://github.com/lianyongxing/text-classification-bert-lightning
 from task.text_classification_train_task import BertTextClassificationTask
 from models.bert import Bert
-from datasets.basic_datasets import build_dataloader
+from dataset.basic_datasets import build_dataloader
 import pytorch_lightning as pl
 
 bert_path = '/Users/user/Desktop/git_projects/text-classification-nlp-pytorch/resources/chinese_bert'

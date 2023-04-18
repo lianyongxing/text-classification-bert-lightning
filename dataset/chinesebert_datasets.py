@@ -16,6 +16,7 @@ from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 from dataset.collate_functions import collate_to_max_length
+from tqdm import tqdm
 
 class ChineseBertDataset(Dataset):
 
@@ -104,7 +105,7 @@ class ChineseBertTokenEncoder(object):
 def _build_dataloader(texts, labs, token_encoder, batch_size):
     encodings = {'ids': [], 'pinyins': []}
 
-    for text in texts:
+    for text in tqdm(texts):
         input_id, pinyin_id = token_encoder.tokenize_sentence(text)
         encodings['ids'].append(input_id)
         encodings['pinyins'].append(pinyin_id)
@@ -113,18 +114,19 @@ def _build_dataloader(texts, labs, token_encoder, batch_size):
     dataloader = DataLoader(dataset, batch_size=batch_size, collate_fn=partial(collate_to_max_length, fill_values=[0, 0, 0]))
     return dataloader
 
-def build_dataloader(fp, bert_path, batch_size=16, max_len=256):
+def build_dataloader(fp, bert_path, batch_size, max_len):
     datas = pd.read_csv(fp)
+    datas = datas[~datas['content_filter'].isna()]
     tokenEncoder = ChineseBertTokenEncoder(bert_path)
 
     train_datas, valid_datas = train_test_split(datas, test_size=0.2, random_state=20)
     train_texts = train_datas['content_filter'].tolist()    # 必须长度限制在512内
-    train_texts = [i[: max_len] for i in train_texts]
+    train_texts = [str(i)[: max_len] for i in train_texts]
     train_labs = train_datas['lab'].tolist()
     train_dl = _build_dataloader(train_texts, train_labs, tokenEncoder, batch_size)
 
     valid_texts = valid_datas['content_filter'].tolist()    # 必须长度限制在512内
-    valid_texts = [i[: max_len] for i in valid_texts]
+    valid_texts = [str(i)[: max_len] for i in valid_texts]
     valid_labs = valid_datas['lab'].tolist()
     valid_dl = _build_dataloader(valid_texts, valid_labs, tokenEncoder, batch_size)
 
