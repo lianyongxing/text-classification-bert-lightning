@@ -11,6 +11,7 @@ import tokenizers
 from pypinyin import pinyin, Style
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
+import torch
 
 
 class ChineseBertDataset(Dataset):
@@ -71,3 +72,21 @@ class ChineseBertDataset(Dataset):
                 pinyin_ids.append([0] * 8)
 
         return pinyin_ids
+
+    def encode_input_text(self, text):
+        """encoding single sentence"""
+        tokenizer_output = self.tokenizer.encode(text)
+        bert_tokens = tokenizer_output.ids
+        pinyin_tokens = self.convert_sentence_to_pinyin_ids(text, tokenizer_output)
+        # 验证正确性，id个数应该相同
+        assert len(bert_tokens) <= self.max_length
+        assert len(bert_tokens) == len(pinyin_tokens)
+        # 转化list为tensor
+        input_ids = torch.LongTensor(bert_tokens)
+        pinyin_ids = torch.LongTensor(pinyin_tokens).view(-1)
+        attention_mask = (input_ids != 0).long()
+
+        input_ids = input_ids.unsqueeze(0)
+        pinyin_ids = pinyin_ids.unsqueeze(0)
+        attention_mask = attention_mask.unsqueeze(0)
+        return input_ids, pinyin_ids, attention_mask
