@@ -17,6 +17,7 @@ from dataset.chinesebert_datasets import build_dataloader as build_chinesebert_d
 from dataset.chinesebert_datasets import build_test_dataloader
 import argparse
 from sklearn.metrics import classification_report
+from types import SimpleNamespace
 
 
 class ChineseBertTextClassificationTask(pl.LightningModule):
@@ -27,7 +28,9 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
         super().__init__()
         if isinstance(args, argparse.Namespace):
             self.save_hyperparameters(args)
-
+        if isinstance(args, dict):
+            args = SimpleNamespace(**args)
+            args.mode = 'test'
         self.args = args
         self.data_path = args.train_filepath
         self.bert_path = args.bert_path
