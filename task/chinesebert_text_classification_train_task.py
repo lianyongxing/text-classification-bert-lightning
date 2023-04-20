@@ -13,10 +13,9 @@ from torch.nn.modules import CrossEntropyLoss
 import torchmetrics
 from models.chinesebert.modeling_glycebert import GlyceBertForSequenceClassification
 from transformers import BertConfig
-from dataset.newbase_datasets import build_dataloader as build_chinesebert_dataloader
+from dataset.chinesebert_datasets import build_dataloader as build_chinesebert_dataloader
 import argparse
 from sklearn.metrics import classification_report
-
 
 
 class ChineseBertTextClassificationTask(pl.LightningModule):
