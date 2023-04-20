@@ -83,7 +83,7 @@ class ChineseBertDataset(Dataset):
         assert len(bert_tokens) == len(pinyin_tokens)
         # 转化list为tensor
         input_ids = torch.LongTensor(bert_tokens)
-        pinyin_ids = torch.LongTensor(pinyin_tokens).view(-1)
+        pinyin_ids = torch.LongTensor(pinyin_tokens)
         attention_mask = (input_ids != 0).long()
 
         input_ids = input_ids.unsqueeze(0)
