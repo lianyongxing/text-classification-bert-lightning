@@ -14,6 +14,7 @@ import torchmetrics
 from models.chinesebert.modeling_glycebert import GlyceBertForSequenceClassification
 from transformers import BertConfig
 from dataset.chinesebert_datasets import build_dataloader as build_chinesebert_dataloader
+from dataset.chinesebert_datasets import build_test_dataloader
 import argparse
 from sklearn.metrics import classification_report
 
@@ -116,7 +117,7 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
 
-        ids, pinyins = batch
+        ids, pinyins, _ = batch
         batch_size, length = ids.shape
         pinyin_ids = pinyins.view(batch_size, length, 8)
 
@@ -131,6 +132,10 @@ class ChineseBertTextClassificationTask(pl.LightningModule):
 
     def val_dataloader(self):
         return self.valid_dl
+
+    def get_test_dataloader(self, path, batch_size, max_length, bert_path):
+        test_loader = build_test_dataloader(path, max_length, batch_size, bert_path)
+        return test_loader
 
 
 

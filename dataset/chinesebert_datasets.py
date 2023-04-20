@@ -66,6 +66,22 @@ def build_dataloader(fp, bert_path, max_len, batch_size):
     return train_loader, valid_loader
 
 
+def build_test_dataloader(fp, max_length, batch_size, bert_path):
+    datas = pd.read_csv(fp)
+    datas = datas[~datas['content_filter'].isna()]
+    # mock label
+    datas['lab'] = 1
+    testset = BasicDataset(datas, bert_path, max_length)
+    test_loader = DataLoader(
+        dataset=testset,
+        batch_size=batch_size,
+        num_workers=0,
+        shuffle=False,
+        collate_fn=partial(collate_to_max_length, fill_values=[0, 0, 0])
+    )
+    return test_loader
+
+
 def unit_test():
     data_path = '/Users/user/Downloads/final_train_v1.csv'
     chinese_bert_path = "/Users/user/Desktop/git_projects/ChineseBERT-base"
