@@ -29,11 +29,11 @@ class BertTextClassificationTask(pl.LightningModule):
         self.args = args
         self.bert_path = args.bert_path
         self.train_filepath = args.train_filepath
-        
-        if args.model == 'bert':
+        self.model_type = args.model
+        if self.model_type == 'bert':
             from models.bert import Bert
             self.model = Bert(self.bert_path)
-        elif args.model == 'roberta':
+        elif self.model_type == 'roberta':
             from models.roberta import Roberta
             self.model = Roberta(self.bert_path)
 
